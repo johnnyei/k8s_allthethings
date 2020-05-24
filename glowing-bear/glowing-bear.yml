@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glowing-bear-config
+data:
+  nginx.conf: |
+    server {
+        listen       8002;
+        server_name  gb.bkknr2.lan;
+    
+        #access_log  /var/log/nginx/host.access.log  main;
+    
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html index.htm;
+        }
+    
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glowing-bear
+  labels:
+    app: glowing-bear
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: glowing-bear
+  template:
+    metadata:
+      labels:
+        app: glowing-bear
+    spec:
+      initContainers:
+        - name: git-clone
+          image: alpine/git
+          args:
+            - clone
+            - --single-branch
+            - --
+            - https://github.com/glowing-bear/glowing-bear.git
+            - /usr/share/nginx/html
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: glowing-bear-src
+              mountPath: /usr/share/nginx/html
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+          - containerPort: 8002
+            protocol: TCP
+          volumeMounts:
+            - name: glowing-bear-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+            - name: glowing-bear-src
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: glowing-bear-config
+          configMap:
+            name: nginx-config
+        - name: glowing-bear-src
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glowing-bear
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8002
+    protocol: TCP
+    targetPort: 8002
+  selector:
+    app: glowing-bear

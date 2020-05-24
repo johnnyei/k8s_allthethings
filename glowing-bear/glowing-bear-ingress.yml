@@ -1,0 +1,36 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: http-redirect-glowingbear
+  namespace: default
+
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`gb.bkknr2.lan`)
+      kind: Rule
+      services:
+        - name: glowing-bear
+          port: 8002
+      middlewares:
+        - name: https-redirect
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: https-glowingbear
+  namespace: default
+
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`gb.bkknr2.lan`)
+      kind: Rule
+      services:
+        - name: glowing-bear
+          port: 8002
+  tls:
+    secretName: bkknr2-wildcard-tls
